@@ -115,6 +115,9 @@ li { padding: 4px 0; }
 .profile-stat { display: flex; flex-direction: column; align-items: center; }
 .profile-stat strong { font-size: 20px; color: #d4a520; }
 .profile-stat span { font-size: 12px; color: #6b6348; }
+.profile-stat.clickable { cursor: pointer; transition: color 0.15s; }
+.profile-stat.clickable:hover strong { color: #f0c040; }
+.profile-stat.clickable:hover span { color: #a09878; }
 
 /* Activity comments */
 .activity-comment { padding: 12px; }

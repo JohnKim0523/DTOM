@@ -132,6 +132,16 @@ export const friends = {
   status: (userId: string) => request(`/friends/status/${userId}`),
 };
 
+// Follows
+export const follows = {
+  follow: (userId: string) => request(`/follows/${userId}`, { method: 'POST' }),
+  unfollow: (userId: string) => request(`/follows/${userId}`, { method: 'DELETE' }),
+  followers: (userId: string) => request(`/follows/${userId}/followers`),
+  following: (userId: string) => request(`/follows/${userId}/following`),
+  counts: (userId: string) => request(`/follows/${userId}/counts`),
+  status: (userId: string) => request(`/follows/${userId}/status`),
+};
+
 // Search
 export const search = async (q: string) => {
   const [userResults, eventResults] = await Promise.all([

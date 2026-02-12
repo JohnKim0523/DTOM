@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { usersApi, friends, auth, BACKEND_URL } from '../api';
+import { usersApi, friends, follows, auth, BACKEND_URL } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
@@ -20,27 +20,67 @@ export default function UserProfile() {
     joinedEvents: any[];
     recentComments: any[];
   }>({ createdEvents: [], joinedEvents: [], recentComments: [] });
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showFollowModal, setShowFollowModal] = useState<'followers' | 'following' | null>(null);
+  const [followList, setFollowList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'created' | 'joined' | 'comments'>('created');
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+    setShowFollowModal(null);
     Promise.all([
       usersApi.get(id),
       auth.me(),
       friends.status(id),
       usersApi.activity(id),
+      follows.counts(id),
+      follows.status(id),
     ])
-      .then(([userData, me, status, act]) => {
+      .then(([userData, me, fStatus, act, fCounts, fFollowing]) => {
         setUser(userData);
         setCurrentUser(me);
-        setFriendStatus(status);
+        setFriendStatus(fStatus);
         setActivity(act);
+        setFollowCounts(fCounts);
+        setIsFollowing(fFollowing.isFollowing);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleFollow = async () => {
+    if (!id) return;
+    try {
+      await follows.follow(id);
+      setIsFollowing(true);
+      setFollowCounts(prev => ({ ...prev, followers: prev.followers + 1 }));
+    } catch {}
+  };
+
+  const handleUnfollow = async () => {
+    if (!id) return;
+    try {
+      await follows.unfollow(id);
+      setIsFollowing(false);
+      setFollowCounts(prev => ({ ...prev, followers: prev.followers - 1 }));
+    } catch {}
+  };
+
+  const openFollowModal = async (type: 'followers' | 'following') => {
+    if (!id) return;
+    setShowFollowModal(type);
+    try {
+      const list = type === 'followers'
+        ? await follows.followers(id)
+        : await follows.following(id);
+      setFollowList(list);
+    } catch {
+      setFollowList([]);
+    }
+  };
 
   const handleAddFriend = async () => {
     if (!id) return;
@@ -92,6 +132,14 @@ export default function UserProfile() {
             <small>Member since {new Date(user.createdAt).toLocaleDateString()}</small>
 
             <div className="profile-stats">
+              <div className="profile-stat clickable" onClick={() => openFollowModal('followers')}>
+                <strong>{followCounts.followers}</strong>
+                <span>Followers</span>
+              </div>
+              <div className="profile-stat clickable" onClick={() => openFollowModal('following')}>
+                <strong>{followCounts.following}</strong>
+                <span>Following</span>
+              </div>
               <div className="profile-stat">
                 <strong>{activity.createdEvents.length}</strong>
                 <span>Created</span>
@@ -100,16 +148,22 @@ export default function UserProfile() {
                 <strong>{activity.joinedEvents.length}</strong>
                 <span>Joined</span>
               </div>
-              <div className="profile-stat">
-                <strong>{activity.recentComments.length}</strong>
-                <span>Comments</span>
-              </div>
             </div>
           </div>
         </div>
 
         {!isOwnProfile && (
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', marginBottom: '24px' }}>
+            {isFollowing ? (
+              <button
+                onClick={handleUnfollow}
+                style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #d4a520' }}
+              >
+                Unfollow
+              </button>
+            ) : (
+              <button onClick={handleFollow}>Follow</button>
+            )}
             {friendStatus.status === null && (
               <button className="friend-btn" onClick={handleAddFriend}>Add Friend</button>
             )}
@@ -220,6 +274,37 @@ export default function UserProfile() {
               </div>
             ))}
           </>
+        )}
+
+        {showFollowModal && (
+          <div className="admin-modal-backdrop" onClick={() => setShowFollowModal(null)}>
+            <div className="admin-modal" onClick={e => e.stopPropagation()}>
+              <h2>{showFollowModal === 'followers' ? 'Followers' : 'Following'}</h2>
+              {followList.length === 0 && (
+                <p style={{ color: '#6b6348' }}>
+                  {showFollowModal === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+                </p>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {followList.map((f: any) => {
+                  const u = showFollowModal === 'followers' ? f.follower : f.following;
+                  return (
+                    <div
+                      key={f.id}
+                      className="card"
+                      style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                      onClick={() => { setShowFollowModal(null); navigate(`/users/${u.id}`); }}
+                    >
+                      <UserLink user={u} size={32} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <button className="btn-danger" onClick={() => setShowFollowModal(null)}>Close</button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>

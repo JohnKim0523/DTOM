@@ -11,6 +11,7 @@ import { FriendsModule } from './friends/friends.module';
 import { MessagesModule } from './messages/messages.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FundraisingModule } from './fundraising/fundraising.module';
+import { FollowsModule } from './follows/follows.module';
 import { AdminModule } from './admin/admin.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { AdminModule } from './admin/admin.module';
     MessagesModule,
     NotificationsModule,
     FundraisingModule,
+    FollowsModule,
     AdminModule,
   ],
 })

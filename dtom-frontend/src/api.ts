@@ -19,7 +19,16 @@ export function clearToken() {
   localStorage.removeItem('token');
 }
 
+const inflightRequests = new Map<string, Promise<any>>();
+
 async function request(path: string, options: RequestInit = {}) {
+  const method = options.method || 'GET';
+  const key = method !== 'GET' ? `${method}:${path}:${options.body || ''}` : '';
+
+  if (key && inflightRequests.has(key)) {
+    return inflightRequests.get(key);
+  }
+
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -27,12 +36,20 @@ async function request(path: string, options: RequestInit = {}) {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || res.statusText);
-  }
-  return res.json();
+  const promise = fetch(`${API}${path}`, { ...options, headers })
+    .then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || res.statusText);
+      }
+      return res.json();
+    })
+    .finally(() => {
+      if (key) inflightRequests.delete(key);
+    });
+
+  if (key) inflightRequests.set(key, promise);
+  return promise;
 }
 
 // Auth
@@ -199,6 +216,13 @@ export function clearAdminToken() {
 }
 
 async function adminRequest(path: string, options: RequestInit = {}) {
+  const method = options.method || 'GET';
+  const key = method !== 'GET' ? `admin:${method}:${path}:${options.body || ''}` : '';
+
+  if (key && inflightRequests.has(key)) {
+    return inflightRequests.get(key);
+  }
+
   const token = getAdminToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -206,12 +230,20 @@ async function adminRequest(path: string, options: RequestInit = {}) {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || res.statusText);
-  }
-  return res.json();
+  const promise = fetch(`${API}${path}`, { ...options, headers })
+    .then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || res.statusText);
+      }
+      return res.json();
+    })
+    .finally(() => {
+      if (key) inflightRequests.delete(key);
+    });
+
+  if (key) inflightRequests.set(key, promise);
+  return promise;
 }
 
 export const admin = {

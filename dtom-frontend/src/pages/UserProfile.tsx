@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { usersApi, friends, follows, auth, BACKEND_URL } from '../api';
+import { usersApi, friends, follows, auth, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
@@ -214,7 +214,7 @@ export default function UserProfile() {
                 <Link key={ev.id} to={`/events/${ev.id}`}>
                   <div className="card event-card">
                     {ev.imageUrl ? (
-                      <img src={`${BACKEND_URL}${ev.imageUrl}`} alt={ev.title} className="card-thumbnail" />
+                      <img src={imageUrl(ev.imageUrl)} alt={ev.title} className="card-thumbnail" />
                     ) : (
                       <div className="card-no-image">No image</div>
                     )}
@@ -238,7 +238,7 @@ export default function UserProfile() {
                 <Link key={ev.id} to={`/events/${ev.id}`}>
                   <div className="card event-card">
                     {ev.imageUrl ? (
-                      <img src={`${BACKEND_URL}${ev.imageUrl}`} alt={ev.title} className="card-thumbnail" />
+                      <img src={imageUrl(ev.imageUrl)} alt={ev.title} className="card-thumbnail" />
                     ) : (
                       <div className="card-no-image">No image</div>
                     )}

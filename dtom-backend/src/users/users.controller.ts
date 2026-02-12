@@ -12,21 +12,12 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
-
-const avatarStorage = diskStorage({
-  destination: './uploads',
-  filename: (_req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
+import { avatarStorage } from '../config/cloudinary.config';
 
 @Controller('users')
 export class UsersController {
@@ -39,7 +30,7 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: User,
   ) {
-    const avatarUrl = `/uploads/${file.filename}`;
+    const avatarUrl = file.path;
     return this.usersService.update(user.id, { avatarUrl });
   }
 

@@ -12,22 +12,13 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
-
-const imageStorage = diskStorage({
-  destination: './uploads',
-  filename: (_req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
+import { imageStorage } from '../config/cloudinary.config';
 
 @Controller('events')
 export class EventsController {
@@ -77,7 +68,7 @@ export class EventsController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: User,
   ) {
-    const imageUrl = `/uploads/${file.filename}`;
+    const imageUrl = file.path;
     return this.eventsService.update(id, { imageUrl }, user.id);
   }
 

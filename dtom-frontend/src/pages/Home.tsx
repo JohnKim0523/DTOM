@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { events, search, BACKEND_URL } from '../api';
+import { events, search, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import UserLink from '../components/UserLink';
 
@@ -96,7 +96,7 @@ export default function Home() {
                     <Link key={ev.id} to={`/events/${ev.id}`}>
                       <div className="card event-card">
                         {ev.imageUrl ? (
-                          <img src={`${BACKEND_URL}${ev.imageUrl}`} alt={ev.title} className="card-thumbnail" />
+                          <img src={imageUrl(ev.imageUrl)} alt={ev.title} className="card-thumbnail" />
                         ) : (
                           <div className="card-no-image">No image</div>
                         )}
@@ -127,7 +127,7 @@ export default function Home() {
                 <Link key={ev.id} to={`/events/${ev.id}`}>
                   <div className="card event-card">
                     {ev.imageUrl ? (
-                      <img src={`${BACKEND_URL}${ev.imageUrl}`} alt={ev.title} className="card-thumbnail" />
+                      <img src={imageUrl(ev.imageUrl)} alt={ev.title} className="card-thumbnail" />
                     ) : (
                       <div className="card-no-image">No image</div>
                     )}

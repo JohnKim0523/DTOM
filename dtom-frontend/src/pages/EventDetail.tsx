@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { auth, events, members, comments, friends, fundraising, BACKEND_URL } from '../api';
+import { auth, events, members, comments, friends, fundraising, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
@@ -219,7 +219,7 @@ export default function EventDetail() {
       ) : (
         <>
           {event.imageUrl && (
-            <img src={`${BACKEND_URL}${event.imageUrl}`} alt={event.title} className="event-image" />
+            <img src={imageUrl(event.imageUrl)} alt={event.title} className="event-image" />
           )}
           <h1>{event.title}</h1>
           <p>{event.description}</p>

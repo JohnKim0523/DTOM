@@ -1,4 +1,4 @@
-import { BACKEND_URL } from '../api';
+import { imageUrl } from '../api';
 
 interface AvatarProps {
   user?: { avatarUrl?: string; displayName?: string; username?: string };
@@ -14,7 +14,7 @@ export default function Avatar({ user, size = 36 }: AvatarProps) {
   if (user?.avatarUrl) {
     return (
       <img
-        src={`${BACKEND_URL}${user.avatarUrl}`}
+        src={imageUrl(user.avatarUrl)}
         alt={user.displayName || user.username || 'avatar'}
         style={{
           width: size,

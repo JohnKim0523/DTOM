@@ -169,6 +169,52 @@ export const fundraising = {
     request(`/events/${eventId}/fundraising/contributions`),
 };
 
+// Admin (uses separate adminToken, not the user token)
+function getAdminToken(): string | null {
+  return localStorage.getItem('adminToken');
+}
+
+export function setAdminToken(token: string) {
+  localStorage.setItem('adminToken', token);
+}
+
+export function clearAdminToken() {
+  localStorage.removeItem('adminToken');
+}
+
+async function adminRequest(path: string, options: RequestInit = {}) {
+  const token = getAdminToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API}${path}`, { ...options, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || res.statusText);
+  }
+  return res.json();
+}
+
+export const admin = {
+  login: (data: { username: string; password: string }) =>
+    request('/admin/login', { method: 'POST', body: JSON.stringify(data) }),
+  stats: () => adminRequest('/admin/stats'),
+  listUsers: (page = 1) => adminRequest(`/admin/users?page=${page}`),
+  updateUser: (id: string, data: any) =>
+    adminRequest(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteUser: (id: string) => adminRequest(`/admin/users/${id}`, { method: 'DELETE' }),
+  listEvents: (page = 1) => adminRequest(`/admin/events?page=${page}`),
+  updateEvent: (id: string, data: any) =>
+    adminRequest(`/admin/events/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteEvent: (id: string) => adminRequest(`/admin/events/${id}`, { method: 'DELETE' }),
+  listMessages: (page = 1) => adminRequest(`/admin/messages?page=${page}`),
+  listComments: (page = 1) => adminRequest(`/admin/comments?page=${page}`),
+  deleteComment: (id: string) => adminRequest(`/admin/comments/${id}`, { method: 'DELETE' }),
+};
+
 // Comments
 export const comments = {
   list: (eventId: string) => request(`/events/${eventId}/comments`),

@@ -164,6 +164,31 @@ li { padding: 4px 0; }
 /* Fundraising toggle */
 .fundraising-toggle { padding: 12px; background: #16160f; border: 1px solid #33301e; border-radius: 6px; }
 
+/* Admin stats grid */
+.admin-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.admin-stat-card { background: #1a1a14; border: 1px solid #33301e; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+.admin-stat-card:hover { border-color: #d4a520; transform: translateY(-2px); }
+.admin-stat-number { display: block; font-size: 36px; font-weight: 700; color: #d4a520; margin-bottom: 4px; }
+.admin-stat-label { display: block; font-size: 14px; color: #a09878; }
+
+/* Admin table */
+.admin-table-wrap { overflow-x: auto; margin-bottom: 16px; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { background: #1a1a14; color: #d4a520; font-size: 13px; font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 2px solid #d4a520; }
+.admin-table td { padding: 10px 12px; font-size: 14px; color: #eee8d5; border-bottom: 1px solid #22221a; }
+.admin-table tr:hover td { background: #16160f; }
+
+/* Admin pagination */
+.admin-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 16px 0; }
+.admin-pagination span { color: #a09878; font-size: 14px; }
+.admin-pagination button:disabled { opacity: 0.4; cursor: default; }
+
+/* Admin modal */
+.admin-modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.admin-modal { background: #1a1a14; border: 1px solid #33301e; border-radius: 8px; padding: 24px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.admin-modal h2 { margin-bottom: 16px; }
+.admin-modal label { display: block; color: #a09878; font-size: 13px; margin-bottom: 4px; }
+
 /* Responsive */
 @media (max-width: 700px) {
   .navbar { padding: 12px 16px; }
@@ -171,4 +196,5 @@ li { padding: 4px 0; }
   .page, .page-narrow { padding: 20px 16px; }
   .profile-card { flex-direction: column; align-items: flex-start; }
   .auth-page .auth-brand h1 { font-size: 36px; }
+  .admin-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }

@@ -136,6 +136,7 @@ li { padding: 4px 0; }
 .unread-badge { background: #d4a520; color: #0d0d0a; font-size: 11px; font-weight: 700; min-width: 22px; height: 22px; border-radius: 11px; display: flex; align-items: center; justify-content: center; padding: 0 6px; flex-shrink: 0; }
 
 /* Conversation chat */
+.conversation-page { padding-left: 40px; padding-right: 40px; }
 .conversation-top-bar { display: flex; align-items: center; gap: 12px; padding: 16px 0; border-bottom: 1px solid #33301e; }
 .message-list { flex: 1; overflow-y: auto; padding: 20px 0; display: flex; flex-direction: column; gap: 8px; }
 .message-bubble { display: flex; gap: 8px; align-items: flex-end; max-width: 75%; }
@@ -192,12 +193,98 @@ li { padding: 4px 0; }
 .admin-modal h2 { margin-bottom: 16px; }
 .admin-modal label { display: block; color: #a09878; font-size: 13px; margin-bottom: 4px; }
 
-/* Responsive */
-@media (max-width: 700px) {
-  .navbar { padding: 12px 16px; }
-  .navbar h1 { font-size: 20px; letter-spacing: 3px; }
-  .page, .page-narrow { padding: 20px 16px; }
-  .profile-card { flex-direction: column; align-items: flex-start; }
-  .auth-page .auth-brand h1 { font-size: 36px; }
+/* Responsive - Tablets */
+@media (max-width: 900px) {
   .admin-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .profile-stats { gap: 16px; }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 700px) {
+  /* Navbar */
+  .navbar { padding: 10px 12px; gap: 8px; }
+  .navbar h1 { font-size: 18px; letter-spacing: 2px; white-space: nowrap; }
+  .navbar-right { gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .navbar-right button { padding: 6px 10px; font-size: 12px; }
+
+  /* Page layout */
+  .page, .page-narrow { padding: 16px 12px; }
+
+  /* Auth */
+  .auth-page { padding: 24px 16px; }
+  .auth-page .auth-brand h1 { font-size: 32px; letter-spacing: 4px; }
+  .auth-page .auth-brand p { font-size: 14px; }
+  .auth-page .auth-card { padding: 20px 16px; }
+
+  /* Tabs - horizontal scroll */
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex-shrink: 0; padding: 8px 12px; font-size: 13px; }
+
+  /* Profile */
+  .profile-card { flex-direction: column; align-items: center; text-align: center; }
+  .profile-info { text-align: center; width: 100%; }
+  .profile-info h1 { font-size: 20px; }
+  .profile-stats { gap: 12px; flex-wrap: wrap; }
+  .profile-stat strong { font-size: 18px; }
+
+  /* Cards */
+  .card { padding: 10px; }
+  .event-card-body { padding: 10px; }
+  .event-card-body h3 { font-size: 15px; }
+
+  /* Messages */
+  .message-bubble { max-width: 88%; }
+  .message-content { padding: 8px 12px; }
+  .message-input-bar { padding: 12px 0; gap: 6px; }
+  .conversation-top-bar { padding: 12px 0; }
+
+  /* Conversation page padding override */
+  .conversation-page { padding-left: 12px; padding-right: 12px; }
+  .conversation-list .conversation-item { padding: 10px 12px; }
+
+  /* Notifications */
+  .notification-item { padding: 10px 12px; }
+
+  /* Modals */
+  .admin-modal { margin: 16px; max-width: calc(100vw - 32px); padding: 16px; }
+
+  /* Admin */
+  .admin-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .admin-stat-card { padding: 16px; }
+  .admin-stat-number { font-size: 28px; }
+  .admin-stat-label { font-size: 12px; }
+  .admin-table th, .admin-table td { padding: 8px 6px; font-size: 12px; }
+  .admin-pagination { gap: 10px; }
+
+  /* Section headers */
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; }
+
+  /* Buttons - ensure touch-friendly sizing */
+  button { padding: 10px 14px; }
+  .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+  /* Fundraising */
+  .fundraising-toggle { padding: 10px; }
+}
+
+/* Responsive - Small phones */
+@media (max-width: 400px) {
+  .navbar { flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .navbar h1 { font-size: 16px; width: 100%; text-align: center; }
+  .navbar-right { width: 100%; justify-content: center; }
+
+  .admin-stats-grid { grid-template-columns: 1fr; }
+  .profile-stats { gap: 8px; }
+
+  .auth-page .auth-brand h1 { font-size: 28px; }
+  .auth-page .auth-card { padding: 16px 12px; }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  button, .tab, .conversation-item, .notification-item { -webkit-tap-highlight-color: transparent; }
+  .event-card:hover { transform: none; box-shadow: none; }
+  .event-card:active { transform: translateY(-1px); border-color: #d4a520; }
 }

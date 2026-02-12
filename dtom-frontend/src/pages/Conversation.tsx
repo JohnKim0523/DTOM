@@ -69,7 +69,7 @@ export default function Conversation() {
   return (
     <>
       <Navbar />
-      <div className="page" style={{ maxWidth: 700, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 62px)', padding: '0 40px' }}>
+      <div className="page conversation-page" style={{ maxWidth: 700, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 62px)' }}>
         <div className="conversation-top-bar">
           <button className="back-btn" onClick={() => navigate('/messages')}>&larr; Back</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

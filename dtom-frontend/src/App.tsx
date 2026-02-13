@@ -13,6 +13,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminMessages from './pages/admin/AdminMessages';
+import PeoplePage from './pages/PeoplePage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token');
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
         <Route path="/events/new" element={<PrivateRoute><CreateEvent /></PrivateRoute>} />
         <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
+        <Route path="/people" element={<PrivateRoute><PeoplePage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
         <Route path="/messages/:userId" element={<PrivateRoute><Conversation /></PrivateRoute>} />
         <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />

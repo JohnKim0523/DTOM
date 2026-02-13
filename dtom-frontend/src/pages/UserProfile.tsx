@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { usersApi, friends, follows, auth, imageUrl } from '../api';
+import { usersApi, friends, follows, auth, posts, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
+import PostCard from '../components/PostCard';
 
 export default function UserProfile() {
   const { id } = useParams();
@@ -24,8 +25,9 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showFollowModal, setShowFollowModal] = useState<'followers' | 'following' | null>(null);
   const [followList, setFollowList] = useState<any[]>([]);
+  const [userPosts, setUserPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'created' | 'joined' | 'comments'>('created');
+  const [activeTab, setActiveTab] = useState<'posts' | 'created' | 'joined' | 'comments'>('posts');
 
   useEffect(() => {
     if (!id) return;
@@ -38,14 +40,16 @@ export default function UserProfile() {
       usersApi.activity(id),
       follows.counts(id),
       follows.status(id),
+      posts.userPosts(id),
     ])
-      .then(([userData, me, fStatus, act, fCounts, fFollowing]) => {
+      .then(([userData, me, fStatus, act, fCounts, fFollowing, userPostsData]) => {
         setUser(userData);
         setCurrentUser(me);
         setFriendStatus(fStatus);
         setActivity(act);
         setFollowCounts(fCounts);
         setIsFollowing(fFollowing.isFollowing);
+        setUserPosts(userPostsData.data || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -195,6 +199,9 @@ export default function UserProfile() {
         )}
 
         <div className="tabs">
+          <button className={`tab ${activeTab === 'posts' ? 'tab-active' : ''}`} onClick={() => setActiveTab('posts')}>
+            Posts ({userPosts.length})
+          </button>
           <button className={`tab ${activeTab === 'created' ? 'tab-active' : ''}`} onClick={() => setActiveTab('created')}>
             Events Created ({activity.createdEvents.length})
           </button>
@@ -205,6 +212,15 @@ export default function UserProfile() {
             Comments ({activity.recentComments.length})
           </button>
         </div>
+
+        {activeTab === 'posts' && (
+          <>
+            {userPosts.length === 0 && <p style={{ color: '#6b6348' }}>No posts yet.</p>}
+            {userPosts.map((post: any) => (
+              <PostCard key={post.id} post={post} currentUser={currentUser} />
+            ))}
+          </>
+        )}
 
         {activeTab === 'created' && (
           <>

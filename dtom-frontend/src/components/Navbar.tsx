@@ -38,6 +38,7 @@ export default function Navbar() {
           Messages
           {unreadMessages > 0 && <span className="navbar-badge">{unreadMessages > 99 ? '99+' : unreadMessages}</span>}
         </button>
+        <button onClick={() => navigate('/people')}>People</button>
         <button onClick={() => navigate('/account')}>Account</button>
       </div>
     </nav>

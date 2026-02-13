@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth, events, users, friends, follows, invites, members, clearToken, imageUrl } from '../api';
+import { auth, events, users, friends, follows, invites, members, posts, clearToken, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
+import PostCard from '../components/PostCard';
 
 export default function Account() {
   const navigate = useNavigate();
@@ -20,6 +21,15 @@ export default function Account() {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Posts
+  const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [postContent, setPostContent] = useState('');
+  const [postImage, setPostImage] = useState<File | null>(null);
+  const [postImagePreview, setPostImagePreview] = useState('');
+  const [repostEventId, setRepostEventId] = useState('');
+  const [postSubmitting, setPostSubmitting] = useState(false);
+  const postImageRef = useRef<HTMLInputElement>(null);
 
   // Password change
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -43,7 +53,54 @@ export default function Account() {
     friends.list().then(setFriendList).catch(() => {});
     friends.requests().then(setFriendRequests).catch(() => {});
     invites.list().then(setEventInvites).catch(() => {});
+    loadMyPosts();
   }, []);
+
+  const loadMyPosts = () => {
+    auth.me().then((u: any) => {
+      posts.userPosts(u.id).then((res: any) => setMyPosts(res.data || [])).catch(() => {});
+    }).catch(() => {});
+  };
+
+  const handlePostImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPostImage(file);
+    setPostImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (postSubmitting) return;
+    setPostSubmitting(true);
+    try {
+      if (repostEventId) {
+        await posts.repost(repostEventId);
+      } else if (postImage) {
+        await posts.createImage(postImage, postContent || undefined);
+      } else if (postContent.trim()) {
+        await posts.createText(postContent);
+      }
+      setPostContent('');
+      setPostImage(null);
+      setPostImagePreview('');
+      setRepostEventId('');
+      loadMyPosts();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create post.');
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await posts.remove(postId);
+      setMyPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete post.');
+    }
+  };
 
   const openFollowModal = async (type: 'followers' | 'following') => {
     if (!user) return;
@@ -213,6 +270,52 @@ export default function Account() {
           </div>
         )}
 
+        {/* Create Post */}
+        <div className="card create-post-card">
+          <strong style={{ color: '#d4a520', marginBottom: 8, display: 'block' }}>Create Post</strong>
+          <form onSubmit={handleCreatePost} style={{ marginBottom: 0 }}>
+            <textarea
+              placeholder="What's on your mind?"
+              value={postContent}
+              onChange={e => setPostContent(e.target.value)}
+              style={{ minHeight: 60 }}
+            />
+            {postImagePreview && (
+              <div style={{ position: 'relative', marginBottom: 8 }}>
+                <img src={postImagePreview} alt="Preview" className="image-preview" />
+                <button
+                  type="button"
+                  className="btn-danger btn-sm"
+                  style={{ position: 'absolute', top: 4, right: 4 }}
+                  onClick={() => { setPostImage(null); setPostImagePreview(''); }}
+                >
+                  X
+                </button>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => postImageRef.current?.click()}
+                style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #d4a520' }}>
+                Add Image
+              </button>
+              <input ref={postImageRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePostImageSelect} />
+              <select
+                value={repostEventId}
+                onChange={e => setRepostEventId(e.target.value)}
+                style={{ padding: '10px', borderRadius: 6, border: '1px solid #33301e', background: '#16160f', color: '#eee8d5', fontSize: 14, fontFamily: 'inherit' }}
+              >
+                <option value="">Share Event...</option>
+                {myEvents.map(ev => (
+                  <option key={ev.id} value={ev.id}>{ev.title}</option>
+                ))}
+              </select>
+              <button type="submit" disabled={postSubmitting || (!postContent.trim() && !postImage && !repostEventId)}>
+                {postSubmitting ? 'Posting...' : 'Post'}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {error && <p className="error">{error}</p>}
         {passwordMsg && <p style={{ color: '#4caf50', marginBottom: 10 }}>{passwordMsg}</p>}
 
@@ -315,7 +418,10 @@ export default function Account() {
           </>
         )}
 
-        <h2>Friends ({friendList.length})</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Friends ({friendList.length})</h2>
+          <Link to="/people"><button className="btn-sm" style={{ marginTop: 16 }}>Find People</button></Link>
+        </div>
         {friendList.length === 0 && <p>No friends yet.</p>}
         {friendList.map(f => {
           const friend = f.requesterId === user?.id ? f.addressee : f.requester;
@@ -368,6 +474,12 @@ export default function Account() {
             </Link>
           ))}
         </div>
+        <h2>My Posts ({myPosts.length})</h2>
+        {myPosts.length === 0 && <p>No posts yet.</p>}
+        {myPosts.map((post: any) => (
+          <PostCard key={post.id} post={post} currentUser={user} onDelete={handleDeletePost} />
+        ))}
+
         {showFollowModal && (
           <div className="admin-modal-backdrop" onClick={() => setShowFollowModal(null)}>
             <div className="admin-modal" onClick={e => e.stopPropagation()}>

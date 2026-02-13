@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Topic } from './entities/topic.entity';
 import { TopicComment } from './entities/topic-comment.entity';
 import { Vote, VoteTargetType } from './entities/vote.entity';
@@ -217,7 +217,7 @@ export class TopicsService {
     await this.assertMember(topic.thread.eventId, userId);
 
     const topLevelComments = await this.topicCommentsRepository.find({
-      where: { topicId, parentId: null as any },
+      where: { topicId, parentId: IsNull() },
       relations: ['author', 'replies', 'replies.author'],
       order: { score: 'DESC', createdAt: 'DESC' },
     });

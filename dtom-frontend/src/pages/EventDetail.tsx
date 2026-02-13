@@ -401,6 +401,7 @@ export default function EventDetail() {
 
   const handleCreateReply = async (e: React.FormEvent, parentId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!expandedTopicId || !replyContent.trim()) return;
     try {
       await topicComments.create(expandedTopicId, replyContent, parentId);

@@ -6,7 +6,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity';
+import { Thread, ThreadPermission, ThreadType } from './entities/thread.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { CreateThreadDto } from './dto/create-thread.dto';
 import { EventMembersService } from '../event-members/event-members.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -17,21 +19,103 @@ export class ThreadsService {
   constructor(
     @InjectRepository(Comment)
     private readonly commentsRepository: Repository<Comment>,
+    @InjectRepository(Thread)
+    private readonly threadsRepository: Repository<Thread>,
     private readonly membersService: EventMembersService,
     private readonly eventsService: EventsService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  // --- Thread CRUD ---
+
+  async createThread(
+    eventId: string,
+    dto: CreateThreadDto,
+    userId: string,
+  ): Promise<Thread> {
+    const event = await this.eventsService.findOne(eventId);
+    if (event.organizerId !== userId) {
+      throw new ForbiddenException('Only the organizer can create threads');
+    }
+    const thread = this.threadsRepository.create({
+      title: dto.title,
+      permission: dto.permission || ThreadPermission.OPEN,
+      type: dto.type || ThreadType.CHANNEL,
+      eventId,
+      createdBy: userId,
+    });
+    return this.threadsRepository.save(thread);
+  }
+
+  async findThreadsByEvent(eventId: string, userId: string): Promise<Thread[]> {
+    await this.assertMember(eventId, userId);
+    return this.threadsRepository.find({
+      where: { eventId },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async updateThreadPermission(
+    threadId: string,
+    permission: ThreadPermission,
+    userId: string,
+  ): Promise<Thread> {
+    const thread = await this.threadsRepository.findOne({ where: { id: threadId } });
+    if (!thread) throw new NotFoundException('Thread not found');
+    const event = await this.eventsService.findOne(thread.eventId);
+    if (event.organizerId !== userId) {
+      throw new ForbiddenException('Only the organizer can update thread permissions');
+    }
+    thread.permission = permission;
+    return this.threadsRepository.save(thread);
+  }
+
+  async deleteThread(threadId: string, userId: string): Promise<void> {
+    const thread = await this.threadsRepository.findOne({ where: { id: threadId } });
+    if (!thread) throw new NotFoundException('Thread not found');
+    const event = await this.eventsService.findOne(thread.eventId);
+    if (event.organizerId !== userId) {
+      throw new ForbiddenException('Only the organizer can delete threads');
+    }
+    await this.threadsRepository.remove(thread);
+  }
+
+  // --- Comment CRUD ---
+
   async create(
     eventId: string,
     dto: CreateCommentDto,
     userId: string,
+    imageUrl?: string,
   ): Promise<Comment> {
     await this.assertMember(eventId, userId);
+
+    if (dto.threadId) {
+      const thread = await this.threadsRepository.findOne({ where: { id: dto.threadId } });
+      if (!thread) throw new NotFoundException('Thread not found');
+      if (thread.eventId !== eventId) {
+        throw new ForbiddenException('Thread does not belong to this event');
+      }
+      if (thread.permission === ThreadPermission.LOCKED) {
+        throw new ForbiddenException('This thread is locked');
+      }
+      if (thread.permission === ThreadPermission.READONLY) {
+        const event = await this.eventsService.findOne(eventId);
+        const isOrganizer = event.organizerId === userId;
+        const memberRole = await this.membersService.getMemberRole(eventId, userId);
+        const isModerator = memberRole === 'moderator';
+        if (!isOrganizer && !isModerator) {
+          throw new ForbiddenException('Only organizers and moderators can post in readonly threads');
+        }
+      }
+    }
+
     const comment = this.commentsRepository.create({
-      ...dto,
+      content: dto.content,
       eventId,
       authorId: userId,
+      threadId: dto.threadId || null,
+      imageUrl: imageUrl || null,
     });
     const saved = await this.commentsRepository.save(comment);
 
@@ -49,10 +133,14 @@ export class ThreadsService {
     return saved;
   }
 
-  async findByEvent(eventId: string, userId: string): Promise<Comment[]> {
+  async findByEvent(eventId: string, userId: string, threadId?: string): Promise<Comment[]> {
     await this.assertMember(eventId, userId);
+    const where: any = { eventId };
+    if (threadId !== undefined) {
+      where.threadId = threadId || null;
+    }
     return this.commentsRepository.find({
-      where: { eventId },
+      where,
       relations: ['author'],
       order: { createdAt: 'ASC' },
     });

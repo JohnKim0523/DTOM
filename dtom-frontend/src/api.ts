@@ -263,14 +263,167 @@ export const admin = {
   deleteComment: (id: string) => adminRequest(`/admin/comments/${id}`, { method: 'DELETE' }),
 };
 
+// Posts
+export const posts = {
+  userPosts: (userId: string, page = 1) => request(`/posts/user/${userId}?page=${page}`),
+  feed: (page = 1) => request(`/posts/feed?page=${page}`),
+  createText: (content: string) =>
+    request('/posts', { method: 'POST', body: JSON.stringify({ content }) }),
+  createImage: async (file: File, content?: string) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    if (content) formData.append('content', content);
+    const res = await fetch(`${API}/posts/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || res.statusText);
+    }
+    return res.json();
+  },
+  repost: (eventId: string) => request(`/posts/repost/${eventId}`, { method: 'POST' }),
+  remove: (id: string) => request(`/posts/${id}`, { method: 'DELETE' }),
+};
+
 // Comments
 export const comments = {
-  list: (eventId: string) => request(`/events/${eventId}/comments`),
-  create: (eventId: string, content: string) =>
+  list: (eventId: string, threadId?: string) =>
+    request(`/events/${eventId}/comments${threadId !== undefined ? `?threadId=${threadId}` : ''}`),
+  create: (eventId: string, content: string, threadId?: string) =>
     request(`/events/${eventId}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, threadId: threadId || undefined }),
     }),
+  createWithImage: async (eventId: string, file: File, content: string, threadId?: string) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('content', content);
+    if (threadId) formData.append('threadId', threadId);
+    const res = await fetch(`${API}/events/${eventId}/comments/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || res.statusText);
+    }
+    return res.json();
+  },
   remove: (commentId: string) =>
     request(`/comments/${commentId}`, { method: 'DELETE' }),
+};
+
+// Threads
+export const threads = {
+  list: (eventId: string) => request(`/events/${eventId}/threads`),
+  create: (eventId: string, title: string, permission?: string, type?: string) =>
+    request(`/events/${eventId}/threads`, {
+      method: 'POST',
+      body: JSON.stringify({ title, permission: permission || undefined, type: type || undefined }),
+    }),
+  update: (threadId: string, permission: string) =>
+    request(`/threads/${threadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permission }),
+    }),
+  remove: (threadId: string) =>
+    request(`/threads/${threadId}`, { method: 'DELETE' }),
+};
+
+// Topics (community threads)
+export const topics = {
+  list: (threadId: string, sort?: string) =>
+    request(`/threads/${threadId}/topics${sort ? `?sort=${sort}` : ''}`),
+  create: (threadId: string, title: string, content: string) =>
+    request(`/threads/${threadId}/topics`, {
+      method: 'POST',
+      body: JSON.stringify({ title, content }),
+    }),
+  createWithImage: async (threadId: string, file: File, title: string, content: string) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('title', title);
+    formData.append('content', content);
+    const res = await fetch(`${API}/threads/${threadId}/topics/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || res.statusText);
+    }
+    return res.json();
+  },
+  remove: (topicId: string) =>
+    request(`/topics/${topicId}`, { method: 'DELETE' }),
+  vote: (topicId: string) =>
+    request(`/topics/${topicId}/vote`, { method: 'POST' }),
+};
+
+// Topic Comments
+export const topicComments = {
+  list: (topicId: string) => request(`/topics/${topicId}/comments`),
+  create: (topicId: string, content: string, parentId?: string) =>
+    request(`/topics/${topicId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content, parentId: parentId || undefined }),
+    }),
+  createWithImage: async (topicId: string, file: File, content: string, parentId?: string) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('content', content);
+    if (parentId) formData.append('parentId', parentId);
+    const res = await fetch(`${API}/topics/${topicId}/comments/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || res.statusText);
+    }
+    return res.json();
+  },
+  remove: (commentId: string) =>
+    request(`/topic-comments/${commentId}`, { method: 'DELETE' }),
+  vote: (commentId: string) =>
+    request(`/topic-comments/${commentId}/vote`, { method: 'POST' }),
+};
+
+// Post Comments
+export const postComments = {
+  list: (postId: string) => request(`/posts/${postId}/comments`),
+  create: (postId: string, content: string, parentId?: string) =>
+    request(`/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content, parentId: parentId || undefined }),
+    }),
+  createWithImage: async (postId: string, file: File, content: string, parentId?: string) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('content', content);
+    if (parentId) formData.append('parentId', parentId);
+    const res = await fetch(`${API}/posts/${postId}/comments/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || res.statusText);
+    }
+    return res.json();
+  },
+  remove: (commentId: string) =>
+    request(`/post-comments/${commentId}`, { method: 'DELETE' }),
 };

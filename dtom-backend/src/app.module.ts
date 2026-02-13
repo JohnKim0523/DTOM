@@ -13,6 +13,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FundraisingModule } from './fundraising/fundraising.module';
 import { FollowsModule } from './follows/follows.module';
 import { AdminModule } from './admin/admin.module';
+import { PostsModule } from './posts/posts.module';
+import { PostCommentsModule } from './post-comments/post-comments.module';
+import { TopicsModule } from './topics/topics.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { AdminModule } from './admin/admin.module';
     FundraisingModule,
     FollowsModule,
     AdminModule,
+    PostsModule,
+    PostCommentsModule,
+    TopicsModule,
   ],
 })
 export class AppModule {}

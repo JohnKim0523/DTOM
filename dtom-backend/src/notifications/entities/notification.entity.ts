@@ -16,6 +16,8 @@ export enum NotificationType {
   EVENT_INVITATION = 'event_invitation',
   EVENT_INVITE_ACCEPTED = 'event_invite_accepted',
   FUNDRAISING_CONTRIBUTION = 'fundraising_contribution',
+  POST_COMMENT = 'post_comment',
+  TOPIC_COMMENT = 'topic_comment',
 }
 
 @Entity('notifications')

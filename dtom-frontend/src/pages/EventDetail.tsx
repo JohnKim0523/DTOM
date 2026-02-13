@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { auth, events, members, comments, friends, fundraising, imageUrl } from '../api';
+import { auth, events, members, comments, threads, friends, fundraising, posts, topics, topicComments, imageUrl } from '../api';
 import Navbar from '../components/Navbar';
 import Avatar from '../components/Avatar';
 import UserLink from '../components/UserLink';
@@ -29,6 +29,41 @@ export default function EventDetail() {
   const [friendList, setFriendList] = useState<any[]>([]);
   const [showInvite, setShowInvite] = useState(false);
 
+  // Repost
+  const [reposted, setReposted] = useState(false);
+
+  // Threads
+  const [threadList, setThreadList] = useState<any[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [showNewThread, setShowNewThread] = useState(false);
+  const [newThreadTitle, setNewThreadTitle] = useState('');
+  const [newThreadPermission, setNewThreadPermission] = useState('open');
+  const [newThreadType, setNewThreadType] = useState('channel');
+
+  // Comment image
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState('');
+  const commentImageRef = useRef<HTMLInputElement>(null);
+
+  // Community thread (topics)
+  const [topicList, setTopicList] = useState<any[]>([]);
+  const [topicSort, setTopicSort] = useState<'new' | 'top'>('new');
+  const [showNewTopic, setShowNewTopic] = useState(false);
+  const [newTopicTitle, setNewTopicTitle] = useState('');
+  const [newTopicContent, setNewTopicContent] = useState('');
+  const [newTopicImage, setNewTopicImage] = useState<File | null>(null);
+  const [newTopicImagePreview, setNewTopicImagePreview] = useState('');
+  const topicImageRef = useRef<HTMLInputElement>(null);
+  const [expandedTopicId, setExpandedTopicId] = useState<string | null>(null);
+  const [expandedTopic, setExpandedTopic] = useState<any>(null);
+  const [topicCommentList, setTopicCommentList] = useState<any[]>([]);
+  const [newTopicComment, setNewTopicComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [topicCommentImage, setTopicCommentImage] = useState<File | null>(null);
+  const [topicCommentImagePreview, setTopicCommentImagePreview] = useState('');
+  const topicCommentImageRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!id) return;
     auth.me().then(setCurrentUser).catch(() => {});
@@ -54,17 +89,74 @@ export default function EventDetail() {
       const memberMatch = !!myMembership && myMembership.role !== 'invited';
       setIsMember(memberMatch || orgMatch);
       setMyRole(myMembership?.role || (orgMatch ? 'organizer' : null));
-      if (memberMatch || orgMatch) loadComments();
+      if (memberMatch || orgMatch) {
+        loadThreads();
+        loadComments();
+      }
     } catch {
       setIsMember(false);
     }
   };
 
-  const loadComments = async () => {
+  const loadThreads = async () => {
     if (!id) return;
     try {
-      setCommentList(await comments.list(id));
+      setThreadList(await threads.list(id));
     } catch {}
+  };
+
+  const loadComments = async (threadId?: string | null) => {
+    if (!id) return;
+    try {
+      const tid = threadId !== undefined ? threadId : activeThreadId;
+      setCommentList(await comments.list(id, tid === null ? '' : tid));
+    } catch {}
+  };
+
+  const handleThreadChange = (threadId: string | null) => {
+    setActiveThreadId(threadId);
+    setExpandedTopicId(null);
+    setExpandedTopic(null);
+    setTopicCommentList([]);
+    if (!id) return;
+    const thread = threadList.find(t => t.id === threadId);
+    if (thread?.type === 'community') {
+      loadTopics(threadId!, topicSort);
+    } else {
+      comments.list(id, threadId === null ? '' : threadId).then(setCommentList).catch(() => {});
+    }
+  };
+
+  const handleCreateThread = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !newThreadTitle.trim()) return;
+    try {
+      await threads.create(id, newThreadTitle, newThreadPermission, newThreadType);
+      setNewThreadTitle('');
+      setNewThreadPermission('open');
+      setNewThreadType('channel');
+      setShowNewThread(false);
+      loadThreads();
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleDeleteThread = async (threadId: string) => {
+    if (!confirm('Delete this thread and all its comments?')) return;
+    try {
+      await threads.remove(threadId);
+      if (activeThreadId === threadId) {
+        setActiveThreadId(null);
+        loadComments(null);
+      }
+      loadThreads();
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleThreadPermissionChange = async (threadId: string, permission: string) => {
+    try {
+      await threads.update(threadId, permission);
+      loadThreads();
+    } catch (err: any) { setError(err.message); }
   };
 
   const handleJoin = async () => {
@@ -85,12 +177,25 @@ export default function EventDetail() {
     } catch (err: any) { setError(err.message); }
   };
 
+  const handleCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCommentImage(file);
+    setCommentImagePreview(URL.createObjectURL(file));
+  };
+
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !newComment.trim()) return;
+    if (!id || (!newComment.trim() && !commentImage)) return;
     try {
-      await comments.create(id, newComment);
+      if (commentImage) {
+        await comments.createWithImage(id, commentImage, newComment || ' ', activeThreadId || undefined);
+      } else {
+        await comments.create(id, newComment, activeThreadId || undefined);
+      }
       setNewComment('');
+      setCommentImage(null);
+      setCommentImagePreview('');
       loadComments();
     } catch (err: any) { setError(err.message); }
   };
@@ -191,7 +296,151 @@ export default function EventDetail() {
     } catch (err: any) { setError(err.message); }
   };
 
+  const handleRepost = async () => {
+    if (!id) return;
+    try {
+      await posts.repost(id);
+      setReposted(true);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  // --- Community thread (topics) handlers ---
+
+  const loadTopics = async (threadId: string, sort: 'new' | 'top') => {
+    try {
+      setTopicList(await topics.list(threadId, sort));
+    } catch {}
+  };
+
+  const handleTopicSortChange = (sort: 'new' | 'top') => {
+    setTopicSort(sort);
+    if (activeThreadId) loadTopics(activeThreadId, sort);
+  };
+
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeThreadId || !newTopicTitle.trim() || !newTopicContent.trim()) return;
+    try {
+      if (newTopicImage) {
+        await topics.createWithImage(activeThreadId, newTopicImage, newTopicTitle, newTopicContent);
+      } else {
+        await topics.create(activeThreadId, newTopicTitle, newTopicContent);
+      }
+      setNewTopicTitle('');
+      setNewTopicContent('');
+      setNewTopicImage(null);
+      setNewTopicImagePreview('');
+      setShowNewTopic(false);
+      loadTopics(activeThreadId, topicSort);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleDeleteTopic = async (topicId: string) => {
+    try {
+      await topics.remove(topicId);
+      if (expandedTopicId === topicId) {
+        setExpandedTopicId(null);
+        setExpandedTopic(null);
+        setTopicCommentList([]);
+      }
+      if (activeThreadId) loadTopics(activeThreadId, topicSort);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleTopicVote = async (topicId: string) => {
+    try {
+      const result = await topics.vote(topicId);
+      setTopicList(prev => prev.map(t => t.id === topicId ? { ...t, score: result.score, userVoted: result.voted } : t));
+      if (expandedTopic?.id === topicId) {
+        setExpandedTopic((prev: any) => prev ? { ...prev, score: result.score, userVoted: result.voted } : prev);
+      }
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleExpandTopic = async (topic: any) => {
+    if (expandedTopicId === topic.id) {
+      setExpandedTopicId(null);
+      setExpandedTopic(null);
+      setTopicCommentList([]);
+      return;
+    }
+    setExpandedTopicId(topic.id);
+    setExpandedTopic(topic);
+    setReplyingTo(null);
+    setReplyContent('');
+    try {
+      setTopicCommentList(await topicComments.list(topic.id));
+    } catch {}
+  };
+
+  const handleTopicCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTopicCommentImage(file);
+    setTopicCommentImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleCreateTopicComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expandedTopicId || (!newTopicComment.trim() && !topicCommentImage)) return;
+    try {
+      if (topicCommentImage) {
+        await topicComments.createWithImage(expandedTopicId, topicCommentImage, newTopicComment || ' ');
+      } else {
+        await topicComments.create(expandedTopicId, newTopicComment);
+      }
+      setNewTopicComment('');
+      setTopicCommentImage(null);
+      setTopicCommentImagePreview('');
+      setTopicCommentList(await topicComments.list(expandedTopicId));
+      if (activeThreadId) loadTopics(activeThreadId, topicSort);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleCreateReply = async (e: React.FormEvent, parentId: string) => {
+    e.preventDefault();
+    if (!expandedTopicId || !replyContent.trim()) return;
+    try {
+      await topicComments.create(expandedTopicId, replyContent, parentId);
+      setReplyingTo(null);
+      setReplyContent('');
+      setTopicCommentList(await topicComments.list(expandedTopicId));
+      if (activeThreadId) loadTopics(activeThreadId, topicSort);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleDeleteTopicComment = async (commentId: string) => {
+    if (!expandedTopicId) return;
+    try {
+      await topicComments.remove(commentId);
+      setTopicCommentList(await topicComments.list(expandedTopicId));
+      if (activeThreadId) loadTopics(activeThreadId, topicSort);
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleTopicCommentVote = async (commentId: string) => {
+    try {
+      const result = await topicComments.vote(commentId);
+      setTopicCommentList(prev => prev.map(c => {
+        if (c.id === commentId) return { ...c, score: result.score, userVoted: result.voted };
+        if (c.replies) {
+          return { ...c, replies: c.replies.map((r: any) => r.id === commentId ? { ...r, score: result.score, userVoted: result.voted } : r) };
+        }
+        return c;
+      }));
+    } catch (err: any) { setError(err.message); }
+  };
+
   const canModerate = isOrganizer || myRole === 'moderator';
+
+  // Get active thread's permission and type
+  const activeThread = threadList.find(t => t.id === activeThreadId);
+  const threadPermission = activeThread?.permission || 'open';
+  const isCommunityThread = activeThread?.type === 'community';
+  const canPostInThread = activeThreadId === null
+    || threadPermission === 'open'
+    || (threadPermission === 'readonly' && canModerate);
+  const threadLocked = activeThreadId !== null && threadPermission === 'locked';
 
   if (!event) return <p>Loading...</p>;
 
@@ -290,11 +539,20 @@ export default function EventDetail() {
         </div>
       )}
 
-      <div style={{ marginTop: '12px', display: 'flex', gap: 8 }}>
+      <div style={{ marginTop: '12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {isMember ? (
           !isOrganizer && <button onClick={handleLeave}>Leave Event</button>
         ) : (
           <button onClick={handleJoin}>Join Event</button>
+        )}
+        {currentUser && (
+          reposted ? (
+            <button disabled style={{ background: '#33301e', color: '#a09878' }}>Shared!</button>
+          ) : (
+            <button onClick={handleRepost} style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #d4a520' }}>
+              Share to Profile
+            </button>
+          )
         )}
         {canModerate && (
           <button onClick={openInviteModal} style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #d4a520' }}>
@@ -356,32 +614,355 @@ export default function EventDetail() {
       {isMember && (
         <>
           <h2>Thread</h2>
-          {commentList.length === 0 && <p>No comments yet.</p>}
-          {commentList.map(c => (
-            <div key={c.id} className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <Avatar user={c.author} size={32} />
-                  <div>
-                    <strong><UserLink user={c.author} showAvatar={false} /></strong>
-                    <p>{c.content}</p>
-                    <small>{new Date(c.createdAt).toLocaleString()}</small>
+
+          {/* Thread tab bar */}
+          <div className="thread-tabs">
+            <button
+              className={`thread-tab ${activeThreadId === null ? 'thread-tab-active' : ''}`}
+              onClick={() => handleThreadChange(null)}
+            >
+              General
+            </button>
+            {threadList.map(t => (
+              <div key={t.id} className="thread-tab-wrapper">
+                <button
+                  className={`thread-tab ${activeThreadId === t.id ? 'thread-tab-active' : ''}`}
+                  onClick={() => handleThreadChange(t.id)}
+                >
+                  {t.title}
+                  {t.type === 'community' && (
+                    <span className="thread-permission-badge" style={{ background: 'rgba(100, 149, 237, 0.2)', color: '#6495ed' }}>Community</span>
+                  )}
+                  <span className={`thread-permission-badge thread-permission-${t.permission}`}>
+                    {t.permission === 'locked' ? 'Locked' : t.permission === 'readonly' ? 'Read-only' : ''}
+                  </span>
+                </button>
+                {isOrganizer && (
+                  <div className="thread-tab-controls">
+                    <select
+                      value={t.permission}
+                      onChange={e => handleThreadPermissionChange(t.id, e.target.value)}
+                      className="thread-permission-select"
+                    >
+                      <option value="open">Open</option>
+                      <option value="readonly">Read-only</option>
+                      <option value="locked">Locked</option>
+                    </select>
+                    <button className="btn-danger btn-sm" onClick={() => handleDeleteThread(t.id)} style={{ padding: '2px 6px', fontSize: 11 }}>X</button>
                   </div>
-                </div>
-                {(isOrganizer || myRole === 'moderator' || c.authorId === currentUser?.id) && (
-                  <button className="btn-danger btn-sm" onClick={() => handleDeleteComment(c.id)}>X</button>
                 )}
               </div>
-            </div>
-          ))}
-          <form onSubmit={handleComment}>
-            <input
-              placeholder="Write a comment..."
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-            />
-            <button type="submit">Send</button>
-          </form>
+            ))}
+            {isOrganizer && (
+              <button
+                className="thread-tab thread-tab-add"
+                onClick={() => setShowNewThread(!showNewThread)}
+              >
+                +
+              </button>
+            )}
+          </div>
+
+          {/* New thread form */}
+          {showNewThread && isOrganizer && (
+            <form onSubmit={handleCreateThread} className="thread-create-form">
+              <input
+                placeholder="Thread name..."
+                value={newThreadTitle}
+                onChange={e => setNewThreadTitle(e.target.value)}
+                required
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={newThreadPermission} onChange={e => setNewThreadPermission(e.target.value)}
+                  style={{ padding: '8px', borderRadius: 6, border: '1px solid #33301e', background: '#16160f', color: '#eee8d5', fontSize: 13, flex: 1 }}>
+                  <option value="open">Open</option>
+                  <option value="readonly">Read-only</option>
+                  <option value="locked">Locked</option>
+                </select>
+                <select value={newThreadType} onChange={e => setNewThreadType(e.target.value)}
+                  style={{ padding: '8px', borderRadius: 6, border: '1px solid #33301e', background: '#16160f', color: '#eee8d5', fontSize: 13, flex: 1 }}>
+                  <option value="channel">Channel</option>
+                  <option value="community">Community</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="submit" className="btn-sm">Create</button>
+                <button type="button" className="btn-sm" onClick={() => setShowNewThread(false)} style={{ background: 'transparent', color: '#6b6348', border: '1px solid #33301e' }}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {/* Community thread UI */}
+          {isCommunityThread ? (
+            <>
+              {/* Sort toggle + New Topic */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div className="topic-sort-toggle">
+                  <button className={`topic-sort-btn ${topicSort === 'new' ? 'topic-sort-active' : ''}`} onClick={() => handleTopicSortChange('new')}>New</button>
+                  <button className={`topic-sort-btn ${topicSort === 'top' ? 'topic-sort-active' : ''}`} onClick={() => handleTopicSortChange('top')}>Top</button>
+                </div>
+                {!threadLocked && canPostInThread && (
+                  <button className="btn-sm" onClick={() => setShowNewTopic(!showNewTopic)}
+                    style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #d4a520' }}>
+                    {showNewTopic ? 'Cancel' : 'New Topic'}
+                  </button>
+                )}
+              </div>
+
+              {threadLocked && (
+                <p style={{ color: '#6b6348', fontStyle: 'italic', marginBottom: 12 }}>This thread is locked.</p>
+              )}
+              {!threadLocked && !canPostInThread && (
+                <p style={{ color: '#6b6348', fontStyle: 'italic', marginBottom: 12 }}>Only organizers and moderators can create topics in this thread.</p>
+              )}
+
+              {/* New topic form */}
+              {showNewTopic && !threadLocked && canPostInThread && (
+                <form onSubmit={handleCreateTopic} className="topic-create-form">
+                  <input
+                    placeholder="Topic title..."
+                    value={newTopicTitle}
+                    onChange={e => setNewTopicTitle(e.target.value)}
+                    required
+                  />
+                  <textarea
+                    placeholder="What do you want to discuss?"
+                    value={newTopicContent}
+                    onChange={e => setNewTopicContent(e.target.value)}
+                    required
+                    style={{ minHeight: 60 }}
+                  />
+                  {newTopicImagePreview && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img src={newTopicImagePreview} alt="Preview" className="comment-photo" />
+                      <button type="button" className="btn-danger btn-sm"
+                        style={{ position: 'absolute', top: 2, right: 2, padding: '1px 4px', fontSize: 10 }}
+                        onClick={() => { setNewTopicImage(null); setNewTopicImagePreview(''); }}>X</button>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className="btn-sm" onClick={() => topicImageRef.current?.click()}
+                      style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #33301e' }}>
+                      Attach Photo
+                    </button>
+                    <input ref={topicImageRef} type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { setNewTopicImage(f); setNewTopicImagePreview(URL.createObjectURL(f)); } }} />
+                    <button type="submit">Post Topic</button>
+                  </div>
+                </form>
+              )}
+
+              {/* Topic list */}
+              {topicList.length === 0 && <p>No topics yet.</p>}
+              {topicList.map(topic => (
+                <div key={topic.id}>
+                  <div className="topic-card" onClick={() => handleExpandTopic(topic)}>
+                    <div className="topic-vote-col" onClick={e => e.stopPropagation()}>
+                      <button
+                        className={`topic-vote-btn ${topic.userVoted ? 'topic-vote-active' : ''}`}
+                        onClick={() => !threadLocked && handleTopicVote(topic.id)}
+                        disabled={threadLocked}
+                      >&#9650;</button>
+                      <span className="topic-score">{topic.score}</span>
+                    </div>
+                    <div className="topic-content-col">
+                      <div className="topic-header">
+                        <strong>{topic.title}</strong>
+                      </div>
+                      <div className="topic-meta">
+                        <UserLink user={topic.author} size={18} />
+                        <span style={{ color: '#6b6348', fontSize: 12 }}>{new Date(topic.createdAt).toLocaleString()}</span>
+                        <span style={{ color: '#6b6348', fontSize: 12 }}>{topic.commentCount} comment{topic.commentCount !== 1 ? 's' : ''}</span>
+                      </div>
+                      {(isOrganizer || myRole === 'moderator' || topic.authorId === currentUser?.id) && (
+                        <button className="btn-danger btn-sm" onClick={e => { e.stopPropagation(); handleDeleteTopic(topic.id); }}
+                          style={{ position: 'absolute', top: 8, right: 8, padding: '2px 6px', fontSize: 11 }}>X</button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded topic */}
+                  {expandedTopicId === topic.id && (
+                    <div className="topic-expanded">
+                      <div className="topic-body">
+                        <p style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{topic.content}</p>
+                        {topic.imageUrl && (
+                          <img src={imageUrl(topic.imageUrl)} alt="topic" className="comment-photo" style={{ marginTop: 8 }} />
+                        )}
+                      </div>
+
+                      <div className="topic-comments-section">
+                        <h3 style={{ fontSize: 14, color: '#d4a520', marginBottom: 8 }}>Comments</h3>
+
+                        {topicCommentList.length === 0 && <p style={{ color: '#6b6348', fontSize: 13 }}>No comments yet.</p>}
+                        {topicCommentList.map(c => (
+                          <div key={c.id} className="topic-comment">
+                            <div className="topic-comment-main">
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <div className="topic-vote-col-sm" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    className={`topic-vote-btn-sm ${c.userVoted ? 'topic-vote-active' : ''}`}
+                                    onClick={() => !threadLocked && handleTopicCommentVote(c.id)}
+                                    disabled={threadLocked}
+                                  >&#9650;</button>
+                                  <span style={{ fontSize: 11, color: c.userVoted ? '#d4a520' : '#a09878' }}>{c.score}</span>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Avatar user={c.author} size={22} />
+                                    <strong style={{ fontSize: 13 }}><UserLink user={c.author} showAvatar={false} /></strong>
+                                    <small style={{ color: '#6b6348' }}>{new Date(c.createdAt).toLocaleString()}</small>
+                                  </div>
+                                  <p style={{ fontSize: 14, marginTop: 4 }}>{c.content}</p>
+                                  {c.imageUrl && <img src={imageUrl(c.imageUrl)} alt="comment" className="comment-photo" />}
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                    {!threadLocked && (
+                                      <button className="btn-sm" onClick={() => { setReplyingTo(replyingTo === c.id ? null : c.id); setReplyContent(''); }}
+                                        style={{ background: 'transparent', color: '#a09878', border: 'none', padding: '2px 4px', fontSize: 12 }}>
+                                        Reply
+                                      </button>
+                                    )}
+                                    {(isOrganizer || myRole === 'moderator' || c.authorId === currentUser?.id) && (
+                                      <button className="btn-danger btn-sm" onClick={() => handleDeleteTopicComment(c.id)}
+                                        style={{ padding: '2px 6px', fontSize: 11 }}>X</button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reply form */}
+                            {replyingTo === c.id && (
+                              <form onSubmit={e => handleCreateReply(e, c.id)} style={{ marginLeft: 40, marginTop: 4, marginBottom: 8, display: 'flex', gap: 6, flexDirection: 'row' }}>
+                                <input placeholder="Write a reply..." value={replyContent} onChange={e => setReplyContent(e.target.value)}
+                                  style={{ flex: 1, fontSize: 13, padding: 6 }} />
+                                <button type="submit" className="btn-sm">Reply</button>
+                              </form>
+                            )}
+
+                            {/* Nested replies */}
+                            {c.replies && c.replies.map((r: any) => (
+                              <div key={r.id} className="topic-comment-reply">
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <div className="topic-vote-col-sm" onClick={e => e.stopPropagation()}>
+                                    <button
+                                      className={`topic-vote-btn-sm ${r.userVoted ? 'topic-vote-active' : ''}`}
+                                      onClick={() => !threadLocked && handleTopicCommentVote(r.id)}
+                                      disabled={threadLocked}
+                                    >&#9650;</button>
+                                    <span style={{ fontSize: 11, color: r.userVoted ? '#d4a520' : '#a09878' }}>{r.score}</span>
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <Avatar user={r.author} size={20} />
+                                      <strong style={{ fontSize: 12 }}><UserLink user={r.author} showAvatar={false} /></strong>
+                                      <small style={{ color: '#6b6348' }}>{new Date(r.createdAt).toLocaleString()}</small>
+                                    </div>
+                                    <p style={{ fontSize: 13, marginTop: 3 }}>{r.content}</p>
+                                    {r.imageUrl && <img src={imageUrl(r.imageUrl)} alt="reply" className="comment-photo" />}
+                                    {(isOrganizer || myRole === 'moderator' || r.authorId === currentUser?.id) && (
+                                      <button className="btn-danger btn-sm" onClick={() => handleDeleteTopicComment(r.id)}
+                                        style={{ padding: '2px 6px', fontSize: 11, marginTop: 2 }}>X</button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+
+                        {/* New comment on topic */}
+                        {!threadLocked && (
+                          <form onSubmit={handleCreateTopicComment} style={{ marginTop: 8 }}>
+                            <input
+                              placeholder="Write a comment..."
+                              value={newTopicComment}
+                              onChange={e => setNewTopicComment(e.target.value)}
+                            />
+                            {topicCommentImagePreview && (
+                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <img src={topicCommentImagePreview} alt="Preview" className="comment-photo" />
+                                <button type="button" className="btn-danger btn-sm"
+                                  style={{ position: 'absolute', top: 2, right: 2, padding: '1px 4px', fontSize: 10 }}
+                                  onClick={() => { setTopicCommentImage(null); setTopicCommentImagePreview(''); }}>X</button>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button" className="btn-sm" onClick={() => topicCommentImageRef.current?.click()}
+                                style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #33301e' }}>
+                                Attach Photo
+                              </button>
+                              <input ref={topicCommentImageRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleTopicCommentImageSelect} />
+                              <button type="submit">Send</button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Channel thread: flat comments (existing behavior) */}
+              {commentList.length === 0 && <p>No comments yet.</p>}
+              {commentList.map(c => (
+                <div key={c.id} className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <Avatar user={c.author} size={32} />
+                      <div>
+                        <strong><UserLink user={c.author} showAvatar={false} /></strong>
+                        <p>{c.content}</p>
+                        {c.imageUrl && (
+                          <img src={imageUrl(c.imageUrl)} alt="comment" className="comment-photo" />
+                        )}
+                        <small>{new Date(c.createdAt).toLocaleString()}</small>
+                      </div>
+                    </div>
+                    {(isOrganizer || myRole === 'moderator' || c.authorId === currentUser?.id) && (
+                      <button className="btn-danger btn-sm" onClick={() => handleDeleteComment(c.id)}>X</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Comment form */}
+              {threadLocked ? (
+                <p style={{ color: '#6b6348', fontStyle: 'italic', marginTop: 8 }}>This thread is locked.</p>
+              ) : !canPostInThread ? (
+                <p style={{ color: '#6b6348', fontStyle: 'italic', marginTop: 8 }}>Only organizers and moderators can post in this thread.</p>
+              ) : (
+                <form onSubmit={handleComment}>
+                  <input
+                    placeholder="Write a comment..."
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                  />
+                  {commentImagePreview && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img src={commentImagePreview} alt="Preview" className="comment-photo" />
+                      <button
+                        type="button"
+                        className="btn-danger btn-sm"
+                        style={{ position: 'absolute', top: 2, right: 2, padding: '1px 4px', fontSize: 10 }}
+                        onClick={() => { setCommentImage(null); setCommentImagePreview(''); }}
+                      >X</button>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className="btn-sm" onClick={() => commentImageRef.current?.click()}
+                      style={{ background: '#1a1a14', color: '#d4a520', border: '1px solid #33301e' }}>
+                      Attach Photo
+                    </button>
+                    <input ref={commentImageRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCommentImageSelect} />
+                    <button type="submit">Send</button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

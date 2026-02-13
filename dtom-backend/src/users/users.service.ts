@@ -88,10 +88,18 @@ export class UsersService {
   }
 
   async search(query: string): Promise<User[]> {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (uuidPattern.test(query)) {
+      const user = await this.usersRepository.findOne({ where: { id: query } });
+      return user ? [user] : [];
+    }
+
     return this.usersRepository
       .createQueryBuilder('user')
       .where('LOWER(user.username) LIKE LOWER(:q)', { q: `%${query}%` })
       .orWhere('LOWER(user.displayName) LIKE LOWER(:q)', { q: `%${query}%` })
+      .orWhere('LOWER(user.email) LIKE LOWER(:q)', { q: `%${query}%` })
       .limit(20)
       .getMany();
   }

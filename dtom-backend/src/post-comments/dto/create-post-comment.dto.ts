@@ -1,11 +1,11 @@
 import { IsString, MinLength, IsOptional, IsUUID } from 'class-validator';
 
-export class CreateCommentDto {
+export class CreatePostCommentDto {
   @IsString()
   @MinLength(1)
   content: string;
 
   @IsOptional()
   @IsUUID()
-  threadId?: string;
+  parentId?: string;
 }

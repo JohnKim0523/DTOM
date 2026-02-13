@@ -9,15 +9,26 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Event } from '../../events/entities/event.entity';
-import { Thread } from './thread.entity';
 
-@Entity('comments')
-export class Comment {
+export enum PostType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  REPOST = 'repost',
+}
+
+@Entity('posts')
+export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('text')
+  @Column({ type: 'text', nullable: true })
   content: string;
+
+  @Column({ nullable: true })
+  imageUrl: string;
+
+  @Column({ type: 'enum', enum: PostType, default: PostType.TEXT })
+  type: PostType;
 
   @Column()
   authorId: string;
@@ -26,22 +37,12 @@ export class Comment {
   @JoinColumn({ name: 'authorId' })
   author: User;
 
-  @Column()
+  @Column({ nullable: true })
   eventId: string;
 
-  @ManyToOne(() => Event, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Event, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'eventId' })
   event: Event;
-
-  @Column({ nullable: true })
-  threadId: string;
-
-  @ManyToOne(() => Thread, (thread) => thread.comments, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'threadId' })
-  thread: Thread;
-
-  @Column({ nullable: true })
-  imageUrl: string;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
@@ -22,5 +23,23 @@ export const imageStorage = new CloudinaryStorage({
     folder: 'dtom/events',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     transformation: [{ width: 1200, quality: 'auto' }],
+  } as any,
+});
+
+export const postImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'dtom/posts',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 1200, quality: 'auto' }],
+  } as any,
+});
+
+export const commentImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'dtom/comments',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 400, quality: 'auto' }],
   } as any,
 });

@@ -80,12 +80,12 @@ export default function EventDetail() {
   }, [currentUser, event]);
 
   const loadMembers = async () => {
-    if (!id || !currentUser) return;
+    if (!id || !currentUser || !event) return;
     try {
       const list = await members.list(id);
       setMemberList(list);
       const myMembership = list.find((m: any) => m.userId === currentUser.id);
-      const orgMatch = event?.organizerId === currentUser.id;
+      const orgMatch = event.organizerId === currentUser.id;
       const memberMatch = !!myMembership && myMembership.role !== 'invited';
       setIsMember(memberMatch || orgMatch);
       setMyRole(myMembership?.role || (orgMatch ? 'organizer' : null));
@@ -94,7 +94,8 @@ export default function EventDetail() {
         loadComments();
       }
     } catch {
-      setIsMember(false);
+      // Don't reset isMember on error — the user may already be a member
+      // but the request failed due to a network issue
     }
   };
 
@@ -163,6 +164,7 @@ export default function EventDetail() {
     if (!id) return;
     try {
       await members.join(id);
+      setIsMember(true);
       loadMembers();
     } catch (err: any) { setError(err.message); }
   };
@@ -860,10 +862,18 @@ export default function EventDetail() {
                                     </div>
                                     <p style={{ fontSize: 13, marginTop: 3 }}>{r.content}</p>
                                     {r.imageUrl && <img src={imageUrl(r.imageUrl)} alt="reply" className="comment-photo" />}
-                                    {(isOrganizer || myRole === 'moderator' || r.authorId === currentUser?.id) && (
-                                      <button className="btn-danger btn-sm" onClick={() => handleDeleteTopicComment(r.id)}
-                                        style={{ padding: '2px 6px', fontSize: 11, marginTop: 2 }}>X</button>
-                                    )}
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                                      {!threadLocked && (
+                                        <button className="btn-sm" onClick={() => { setReplyingTo(c.id); setReplyContent(`@${r.author?.username || r.author?.displayName || ''} `); }}
+                                          style={{ background: 'transparent', color: '#a09878', border: 'none', padding: '2px 4px', fontSize: 12 }}>
+                                          Reply
+                                        </button>
+                                      )}
+                                      {(isOrganizer || myRole === 'moderator' || r.authorId === currentUser?.id) && (
+                                        <button className="btn-danger btn-sm" onClick={() => handleDeleteTopicComment(r.id)}
+                                          style={{ padding: '2px 6px', fontSize: 11 }}>X</button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
